@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>Chat</title>
+	<link rel="stylesheet" href="styles.css">
+	
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.js"></script>
+	<script src="./utils.js"></script>
+</head>
+<body>
+	<div id="fundo-externo">
+		<div id="fundo">
+			<img src="/img/bg1.jpg" alt="" id="img" />
+		</div>
+	</div>
+	<div class="container" >
+		<div>
+			<p class="TitleTop" >Trabalho de Instrumentação</p>
+		</div>
+		<div class="infos" >
+			<div class="data">
+				<p class="title" >Saida do LM324</p>
+				<div id="saidaLM" class="value"></div>
+			</div>
+			<div class="data">
+				<p class="title"  >Entrada do LM324</p>
+				<div id="entraLM" class="value" ></div>
+			</div>
+			<div class="data">
+				<p class="title"  >Ganho</p>
+				<div id="ganhoLM" class="value" ></div>
+			</div>
+			<div class="data">
+				<p class="title"  >Resistencia R1</p>
+				<div id="valueR1" class="value"></div>
+			</div>
+		</div>
+		<div class="graficDiv" >
+			<div class="grafico" >
+				<canvas id="myChart" class="canvaGraf" ></canvas>
+			</div>
+			<div class="grafico" >
+				<canvas id="myChartRes" class="canvaGraf" ></canvas>
+			</div>
+		</div>
+	</div>
+
+	<script>
+
+		$('#saidaLM').css('background-color', window.chartColors.red);
+		$('#entraLM').css('background-color', window.chartColors.orange);
+		$('#ganhoLM').css('background-color', window.chartColors.blue);
+		$('#valueR1').css('background-color', window.chartColors.purple);
+
+		var labelTime = [];
+		var dataSaiLm = [];
+		var dataEntLm = [];
+		var dataGanho = [];
+		var dataRes = [];
+
+		var config = {
+			type: 'line',
+			data: {
+				labels: labelTime,
+				datasets: [{
+					label: 'Saida do LM324',
+					backgroundColor: window.chartColors.red,
+					borderColor: window.chartColors.red,
+					data: dataSaiLm,
+					fill: false,
+				}, {
+					label: 'Entrada do LM324',
+					fill: false,
+					backgroundColor: window.chartColors.orange,
+					borderColor: window.chartColors.orange,
+					data: dataEntLm,
+				}, {
+					label: 'Ganho',
+					fill: false,
+					backgroundColor: window.chartColors.blue,
+					borderColor: window.chartColors.blue,
+					data: dataGanho,
+				}]
+			},
+			options: {
+				responsive: true,
+				title: {
+					display: true,
+					text: 'Valores do LM324'
+				},
+				tooltips: {
+					mode: 'index',
+					intersect: false,
+				},
+				hover: {
+					mode: 'nearest',
+					intersect: true
+				},
+				scales: {
+					xAxes: [{
+						display: true,
+						scaleLabel: {
+							display: true,
+							labelString: 'Time'
+						}
+					}],
+					yAxes: [{
+						display: true,
+						scaleLabel: {
+							display: true,
+							labelString: 'Value'
+						}
+					}]
+				}
+			}
+		};
+
+		var configRes = {
+			type: 'line',
+			data: {
+				labels: labelTime,
+				datasets: [{
+					label: 'Resistencia R1',
+					fill: false,
+					backgroundColor: window.chartColors.purple,
+					borderColor: window.chartColors.purple,
+					data: dataRes,
+				}]
+			},
+			options: {
+				responsive: true,
+				title: {
+					display: true,
+					text: 'Valores de R1'
+				},
+				tooltips: {
+					mode: 'index',
+					intersect: false,
+				},
+				hover: {
+					mode: 'nearest',
+					intersect: true
+				},
+				scales: {
+					xAxes: [{
+						display: true,
+						scaleLabel: {
+							display: true,
+							labelString: 'Month'
+						}
+					}],
+					yAxes: [{
+						display: true,
+						scaleLabel: {
+							display: true,
+							labelString: 'Value'
+						}
+					}]
+				}
+			}
+		};
+	</script>
+
+	<script type="text/javascript">
+		var socket = io('http://localhost:3000');
+
+		function menssageValues(message) {
+			$('#saidaLM').html(message.saidaLM);
+			$('#entraLM').html(message.entraLM);
+			$('#ganhoLM').html(message.ganhoLM);
+			$('#valueR1').html(message.valueR1);
+		}
+
+		socket.on('receiveMessage', function(message){
+			var timeEnt = new Date();
+			var hora    = timeEnt.getHours();          // 0-23
+			var min     = timeEnt.getMinutes();        // 0-59
+			var seg     = timeEnt.getSeconds();        // 0-59
+
+			var str_hora = hora + ':' + min + ':' + seg;
+			
+			menssageValues(message);
+
+			labelTime.push(str_hora);
+
+			dataSaiLm.push(message.saidaLM);
+			dataEntLm.push(message.entraLM);
+			dataGanho.push(message.ganhoLM);
+			dataRes.push(message.valueR1);
+
+			if (labelTime.length > 10) {
+				labelTime.shift();
+				dataSaiLm.shift();
+				dataEntLm.shift();
+				dataGanho.shift();
+				dataRes.shift();
+			}
+			
+			var ctx = document.getElementById('myChart').getContext('2d');
+			var graf = new Chart(ctx, config);
+
+			var ctxRes = document.getElementById('myChartRes').getContext('2d');
+			var graf = new Chart(ctxRes, configRes);
+		});
+
+	</script>
+
+</body>
+</html>
